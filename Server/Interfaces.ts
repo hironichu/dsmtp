@@ -1,15 +1,20 @@
 import { User } from "./Users.ts";
 import { Mailbox } from "./Mail.ts";
-import { SMTPResponse } from "./Response.ts";
+import { SMTPResponse, SmtpResponse } from "./Response.ts";
 import { Domain } from "./Domain.ts";
-
+import { SMTPServer } from "./Smtp.ts";
+import { ClientConn } from "./Session.ts";
 
 export interface SMTPCommand {
-    execute(args: string[], context: SMTPContext): SMTPResponse;
+  execute(
+    args: string[],
+    context: SMTPServer,
+    client: ClientConn,
+  ): Promise<SMTPResponse> | SMTPResponse | void;
 }
-  
+
 export interface SMTPContext {
-    users: User[];
-    mails: Mailbox[];
-    domains: Domain[];
+  users: User[];
+  mails: Mailbox[];
+  domains: Domain[];
 }

@@ -16,6 +16,7 @@ export class Security implements ISecurity {
   lastUpdated: number = Date.now();
   //Hashes of each index of the data, so we can check integrity of the data for each update
   #hashes = new Map<string, string>();
+  #HMAC: CryptoKey | null = null;
   constructor() {
     //read the key from the file, do not keep it in memory
     const key = Deno.readFileSync("./server.key");
@@ -33,14 +34,24 @@ export class Security implements ISecurity {
       true,
       ["encrypt", "decrypt"],
     ).then((key) => {
+      //Generate a HMAC key from the salt
       this.#key = key;
+    });
+    window.crypto.subtle.generateKey(
+      {
+        name: "HMAC",
+        hash: { name: "SHA-512" },
+      },
+      true,
+      ["sign", "verify"],
+    ).then((key) => {
+      this.#HMAC = key;
     });
   }
   public init(server: SMTPServer) {
     this.#update(server);
   }
   async load(server: SMTPServer) {
-    // console.log(this.#key, this.#iv, localStorage)
     if (!this.#key || !this.#iv) throw new Error("The key or iv is missing");
     const smtpData = localStorage.getItem("smtpData");
     try {
@@ -54,6 +65,18 @@ export class Security implements ISecurity {
           domains: server.domains,
           mails: server.mails,
         };
+        this.#hashes.set(
+          "users",
+          await this.digest(JSON.stringify(data.users)),
+        );
+        this.#hashes.set(
+          "domains",
+          await this.digest(JSON.stringify(data.domains)),
+        );
+        this.#hashes.set(
+          "mails",
+          await this.digest(JSON.stringify(data.mails)),
+        );
         const encrypted = await this.encrypt(JSON.stringify(data));
         if (encrypted === null) throw new Error("The data is missing");
         localStorage.setItem("smtpData", encrypted);
@@ -66,6 +89,18 @@ export class Security implements ISecurity {
         server.users = restored.users as unknown as User[];
         server.domains = restored.domains as unknown as Domain[];
         server.mails = restored.mails as unknown as Mailbox[];
+        this.#hashes.set(
+          "users",
+          await this.digest(JSON.stringify(server.users)),
+        );
+        this.#hashes.set(
+          "domains",
+          await this.digest(JSON.stringify(server.domains)),
+        );
+        this.#hashes.set(
+          "mails",
+          await this.digest(JSON.stringify(server.mails)),
+        );
       }
     } catch (ex) {
       throw ex;
@@ -76,14 +111,25 @@ export class Security implements ISecurity {
     Promise.all([
       (async () => {
         let lastTime = Date.now();
-        //Loop every 5 seconds and update the data
         while (true) {
-          //check if lastTime is more than 5 seconds ago
           if (Date.now() - lastTime < 5000) {
-            console.log(5000 - (Date.now() - lastTime));
             await new Promise((resolve) =>
               setTimeout(resolve, 5000 - (Date.now() - lastTime))
             );
+            continue;
+          }
+          const usersHash = await this.digest(JSON.stringify(context.users));
+          const domainsHash = await this.digest(
+            JSON.stringify(context.domains),
+          );
+          const mailsHash = await this.digest(JSON.stringify(context.mails));
+          if (
+            usersHash === this.#hashes.get("users") &&
+            domainsHash === this.#hashes.get("domains") &&
+            mailsHash === this.#hashes.get("mails")
+          ) {
+            lastTime = Date.now();
+            await new Promise((resolve) => setTimeout(resolve, 5000));
             continue;
           }
           console.info("[DSMTP] Updating the data");
@@ -95,6 +141,11 @@ export class Security implements ISecurity {
           const encrypted = await this.encrypt(JSON.stringify(data));
           if (encrypted === null) throw new Error("The data is missing");
           localStorage.setItem("smtpData", encrypted);
+          //update the hashes
+          this.#hashes.set("users", usersHash);
+          this.#hashes.set("domains", domainsHash);
+          this.#hashes.set("mails", mailsHash);
+
           console.info("[DSMTP] Data updated " + new Date().toLocaleString());
           lastTime = Date.now();
           await new Promise((resolve) => setTimeout(resolve, 5000));
@@ -135,12 +186,32 @@ export class Security implements ISecurity {
     }
   }
   public HMACverify() {
-    //Function that check a HMAC
+    if (!this.#HMAC) throw new Error("The HMAC key is missing");
+    //Function that verify the HMAC
   }
-  public HMACsign() {
-    //Function that check a HMAC
+  public async HMACsign(data: string): Promise<ArrayBuffer> {
+    if (!this.#HMAC) throw new Error("The HMAC key is missing");
+    const signature = await window.crypto.subtle.sign(
+      "HMAC",
+      this.#HMAC,
+      new TextEncoder().encode(data),
+    );
+    return signature;
   }
-
+  public async digest(data: string): Promise<string> {
+    //Function that digest data
+    try {
+      const hash = await crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode(data),
+      );
+      const hashArray = Array.from(new Uint8Array(hash));
+      const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0"));
+      return hashHex.join("");
+    } catch (ex) {
+      throw ex;
+    }
+  }
   public encryptPassword() {
     //Function that encrypt a password
   }

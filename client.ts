@@ -4,21 +4,19 @@ import { SmtpClient } from "https://deno.land/x/smtp/mod.ts";
 const client = new SmtpClient();
 
 await client.connect({
-    hostname: "127.0.0.1",
-    port: 25,
-    username: "username",
-    password: "password",
+  hostname: "127.0.0.1",
+  port: 25,
+  username: "username",
+  password: "password",
 });
 console.log("connected");
 
-
 await client.send({
-    from: "mailaddress@163.com",
-    to: "to-address@xx.com",
-    subject: "Mail Title",
-    content: "Mail Content",
-    html: "<a href='https://github.com'>Github</a>",
-  });
+  from: "mailaddress@163.com",
+  to: "to-address@xx.com",
+  subject: "Mail Title",
+  content: "Mail Content",
+});
 // await client.send({
 //     from: "local@localhost.fr",
 //     to: "local@localhost.fr",
