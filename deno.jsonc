@@ -1,0 +1,14 @@
+{
+  "tasks": {
+    "dev": "deno run -A --watch main.ts",
+    "client": "deno run -A --watch client.ts",
+    "init": "deno run --allow-sys --allow-read --allow-write init.ts"
+  },
+  "fmt": {
+    "enable": true,
+    "options": {
+      "check": true,
+      "unstable": true
+    }
+  }
+}
