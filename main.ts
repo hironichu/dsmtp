@@ -40,6 +40,7 @@ async function processCommand(
   args: string[],
   server: SMTPServer,
   client: ClientConn,
+  cmd_text?: string,
 ) {
   const cmdState = commandMap[client.session.state];
   if (cmdState) {
@@ -52,7 +53,7 @@ async function processCommand(
       return { code: 502, message: "Command not implemented" };
     }
     console.info(`[DSMTP] Client ${client.conn.rid}: Command: `, command);
-    await cmd.execute(args, server, client);
+    await cmd.execute(args, server, client, cmd_text);
   } else {
     return { code: 502, message: "Command not implemented" };
   }
@@ -64,7 +65,7 @@ async function handleMessages(client: ClientConn, id: string) {
       const data = decoder.decode(res);
       let [command, ...args] = data.split(" ");
       command = command.trim();
-      await processCommand(command, args, server, client);
+      await processCommand(command, args, server, client, command);
       //
     } catch (e) {
       console.error(e);
@@ -90,9 +91,9 @@ async function handleConn(conn: Deno.Conn) {
 
     await conn.write(
       encoder.encode(
-        `220 ${Deno.env.get("DSMTP_NAME")} ${Deno.env.get("DSMTP_VERSION")} ${
-          Deno.env.get("DSMTP_HOSTNAME")
-        }\r\n`,
+        `220 Welcome to ${Deno.env.get("DSMTP_NAME")} ${
+          Deno.env.get("DSMTP_VERSION")
+        } ${Deno.env.get("DSMTP_HOSTNAME")}\r\n`,
       ),
     );
     await handleMessages(clients.get(id)!, id);

@@ -6,8 +6,8 @@ const client = new SmtpClient();
 await client.connect({
   hostname: "127.0.0.1",
   port: 25,
-  username: "username",
-  password: "password",
+  username: "test",
+  password: "1234",
 });
 console.log("connected");
 

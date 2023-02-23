@@ -33,13 +33,15 @@ export class EHLOCommand implements SMTPCommand {
     server: SMTPServer,
     client: ClientConn,
   ) {
-    console.log("EHLO: " + args[0]);
-    console.log(client.session.state);
+    console.log("DEBUG", "EHLO: " + args[0].trim());
+    console.log("DEBUG", client.session.state);
     if (client.session.state == SessionState.Started) {
       await server.sendResponse(
         {
           code: 250,
-          message: `localhost greets ${args[0]}`,
+          message: `localhost greets ${
+            args[0].trim()
+          }\r\n200-STARTTLS\r\n200-PIPELINING\r\n200-8BITMIME\r\n200-SIZE 10000000\r\n`,
         },
         client,
       );
@@ -47,7 +49,7 @@ export class EHLOCommand implements SMTPCommand {
     }
     client.session.state = SessionState.Started;
     await server.sendResponse(
-      { code: 250, message: `localhost greets ${args[0]}` },
+      { code: 250, message: `localhost greets ${args[0].trim()}` },
       client,
     );
     console.log("Done processing");
@@ -56,25 +58,25 @@ export class EHLOCommand implements SMTPCommand {
 }
 export class MAILCommand implements SMTPCommand {
   async execute(
-    _args: string[],
+    args: string[],
     server: SMTPServer,
     client: ClientConn,
   ) {
     // process MAIL command logic
     //read the mail from the client
-    const addr = this.parseAddress(_args[1]);
-    console.log("MAIL: " + addr);
+    // const addr = this.parseAddress(_args[1]);
     await server.sendResponse({ code: 250, message: "OK" }, client);
-    client.session.mailFrom = [..._args].join(" ");
+    client.session.mailFrom = [...args].join(" ");
+    console.log("MAIL: " + client.session.mailFrom);
     client.session.state = SessionState.AwaitingRcptTo;
     return { code: 250, message: "OK" };
   }
-  private parseAddress(email: string): [string, string] {
-    const m = email.toString().match(/(.*)\s<(.*)>/);
-    return m?.length === 3
-      ? [`<${m[2]}>`, email]
-      : [`<${email}>`, `<${email}>`];
-  }
+  // private parseAddress(email: string): [string, string] {
+  //   const m = email.toString().match(/(.*)\s<(.*)>/);
+  //   return m?.length === 3
+  //     ? [`<${m[2]}>`, email]
+  //     : [`<${email}>`, `<${email}>`];
+  // }
 }
 export class RCPTCommand implements SMTPCommand {
   async execute(
@@ -82,14 +84,11 @@ export class RCPTCommand implements SMTPCommand {
     server: SMTPServer,
     client: ClientConn,
   ) {
-    //parse the mail
-    // process RCPT command logic
     const mail = [..._args].join(" ");
     console.log("RCPT: " + mail);
-    //change the state of the client
-    await server.sendResponse({ code: 250, message: "2.1.5 Ok" }, client);
     client.session.state = SessionState.AwaitingData;
     client.session.rcptTo = mail;
+    await server.sendResponse({ code: 250, message: "2.1.5 Ok" }, client);
     return { code: 250, message: "2.1.5 Ok" };
   }
 }
@@ -112,6 +111,8 @@ export class DATACommand implements SMTPCommand {
         for (const line in _args) {
           console.log(_args[line]);
         }
+        client.session.state = SessionState.Started;
+        await server.sendResponse({ code: 250, message: "OK" }, client);
         break;
     }
     //change the state of the client
@@ -154,6 +155,7 @@ export class AUTHCommand implements SMTPCommand {
     _args: string[],
     _context: SMTPServer,
     client: ClientConn,
+    cmd: string,
   ) {
     switch (client.session.state) {
       case SessionState.Started:
@@ -162,12 +164,14 @@ export class AUTHCommand implements SMTPCommand {
         await client.conn.write(encoder.encode("334 VXNlcm5hbWU6\r\n"));
         return { code: 334, message: "VXNlcm5hbWU6" };
       case SessionState.AwaitingAuthUsername:
-        client.session.username = _args[0];
+        console.debug("DEBUG: GOT USERNAME" + cmd);
+        client.session.username = cmd;
         client.session.state = SessionState.AwaitingAuthPassword;
         await client.conn.write(encoder.encode("334 UGFzc3dvcmQ6\r\n"));
         return { code: 334, message: "UGFzc3dvcmQ6" };
       case SessionState.AwaitingAuthPassword:
-        client.session.password = _args[0];
+        console.debug("DEBUG: GOT PASSWORD" + cmd);
+        client.session.password = cmd;
         client.session.state = SessionState.Authenticated;
         await client.conn.write(
           encoder.encode("235 Authentication successful\r\n"),
@@ -207,6 +211,7 @@ export const commandMap = {
     QUIT: commands.QUIT,
     NOOP: commands.NOOP,
     AUTH: commands.AUTH,
+    MAIL: commands.MAIL,
   },
   [SessionState.AwaitingAuthUsername]: {
     "default": commands.AUTH,

@@ -1,6 +1,6 @@
 import { User } from "./Users.ts";
 import { Mailbox } from "./Mail.ts";
-import { SMTPResponse, SmtpResponse } from "./Response.ts";
+import { SMTPResponse } from "./Response.ts";
 import { Domain } from "./Domain.ts";
 import { SMTPServer } from "./Smtp.ts";
 import { ClientConn } from "./Session.ts";
@@ -10,6 +10,7 @@ export interface SMTPCommand {
     args: string[],
     context: SMTPServer,
     client: ClientConn,
+    cmd_text?: string,
   ): Promise<SMTPResponse> | SMTPResponse | void;
 }
 
