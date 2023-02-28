@@ -127,7 +127,10 @@ export class DATACommand implements SMTPCommand {
             client,
           );
         }
-        return;
+        return await server.sendResponse(
+          { code: 503, message: "Bad sequence of commands" },
+          client,
+        );
       }
       case SessionState.Started:
         return await server.sendResponse(

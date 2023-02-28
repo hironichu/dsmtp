@@ -44,7 +44,6 @@ function processCommand(
   client: ClientConn,
   cmd_text?: string,
 ) {
-  console.log("CURRENT STATE : ", client.session.state, "");
   const cmdState = commandMap[client.session.state];
   if (cmdState) {
     let cmd = cmdState[

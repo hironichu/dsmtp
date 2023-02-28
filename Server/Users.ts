@@ -1,4 +1,4 @@
-import { Mail, Mailbox } from "./Mail.ts";
+import { Mailbox } from "./Mail.ts";
 
 export class User {
   public id = "";

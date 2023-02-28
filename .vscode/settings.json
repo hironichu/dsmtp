@@ -1,7 +1,7 @@
 {
-    "deno.enable": true,
-    "deno.unstable": true,
-    "editor.insertSpaces": true,
-    "editor.tabSize": 2,
-    "editor.formatOnSave": true,
+  "deno.enable": true,
+  "deno.unstable": true,
+  "editor.insertSpaces": true,
+  "editor.tabSize": 2,
+  "editor.formatOnSave": true
 }
