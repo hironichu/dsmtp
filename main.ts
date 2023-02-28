@@ -37,17 +37,18 @@ const server = new SMTPServer(security, {
   name: Deno.env.get("DSMTP_NAME")!,
 });
 
-async function processCommand(
+function processCommand(
   command: string,
   args: string[],
   server: SMTPServer,
   client: ClientConn,
   cmd_text?: string,
 ) {
+  console.log("CURRENT STATE : ", client.session.state, "");
   const cmdState = commandMap[client.session.state];
   if (cmdState) {
     let cmd = cmdState[
-      command.toUpperCase() as unknown as keyof typeof cmdState
+      command as unknown as keyof typeof cmdState
     ] as SMTPCommand;
     if (!cmd) {
       cmd = (cmdState as keyof typeof cmdState)["default"] as SMTPCommand;
@@ -58,11 +59,10 @@ async function processCommand(
         client,
       );
     }
-    console.info(`[DSMTP] Client ${client.conn.rid}: Command: `, command);
-    await cmd.execute(args, server, client, cmd_text);
+    return cmd.execute(args, server, client, cmd_text);
   } else {
     return server.sendResponse(
-      { code: 502, message: "Command not implemented" },
+      { code: 502, message: "Command " + cmdState + " not found" },
       client,
     );
   }
@@ -73,9 +73,15 @@ async function handleMessages(client: ClientConn, id: string) {
     try {
       const data = decoder.decode(res);
       let [command, ...args] = data.split(" ");
-      command = command.trim();
+      command = command.trim().toUpperCase();
       console.log(`[DSMTP] Client ${client.conn.rid}: `, command, args);
-      await processCommand(command, args, server, client, command);
+      await processCommand(
+        command,
+        args,
+        server,
+        client,
+        command,
+      );
       //
     } catch (e) {
       console.error(e);

@@ -36,6 +36,9 @@ export class SMTPServer implements SMTPContext {
     response: SmtpResponse,
     client: ClientConn,
   ): Promise<SmtpResponse> {
+    console.log(
+      `[DSMTP] Sending Response: ${response.code} ${response.message}`,
+    );
     await client.conn.write(
       encoder.encode(`${response.code} ${response.message}\r\n`),
     );
