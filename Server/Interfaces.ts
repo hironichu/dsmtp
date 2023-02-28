@@ -4,6 +4,7 @@ import { SMTPResponse } from "./Response.ts";
 import { Domain } from "./Domain.ts";
 import { SMTPServer } from "./Smtp.ts";
 import { ClientConn } from "./Session.ts";
+import { Security } from "./Security.ts";
 
 export interface SMTPCommand {
   execute(

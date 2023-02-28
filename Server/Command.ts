@@ -1,8 +1,8 @@
 // Command handler for the SMTP server, it contains a very basic implementation of the SMTP protocol
 
 import { encoder } from "../utils.ts";
-import { SMTPCommand, SMTPContext } from "./Interfaces.ts";
-import { SMTPResponse, SmtpResponse } from "./Response.ts";
+import { SMTPCommand } from "./Interfaces.ts";
+import { SMTPResponse } from "./Response.ts";
 import { ClientConn, SessionState } from "./Session.ts";
 import { SMTPServer } from "./Smtp.ts";
 
@@ -12,48 +12,61 @@ export class HELOCommand implements SMTPCommand {
     server: SMTPServer,
     client: ClientConn,
   ) {
-    if (client.session.state == SessionState.Started) {
-      await server.sendResponse(
-        { code: 250, message: `localhost greets ${args[0]}` },
+    const hostname = args[0]?.trim();
+
+    if (!hostname) {
+      return await server.sendResponse(
+        { code: 501, message: "Syntax error in parameters or arguments" },
         client,
       );
-      return { code: 503, message: "Bad sequence of commands" };
+    }
+    if (client.session.state == SessionState.Started) {
+      return await server.sendResponse(
+        { code: 250, message: `Bad sequence of commands` },
+        client,
+      );
     }
     client.session.state = SessionState.Started;
-    await server.sendResponse(
-      { code: 250, message: `localhost greets ${args[0]}` },
+    return server.sendResponse(
+      { code: 250, message: `${server.hostname} greets ${args[0]}` },
       client,
     );
-    return { code: 220, message: "localhost  greets spectre" };
   }
 }
 export class EHLOCommand implements SMTPCommand {
-  async execute(
+  execute(
     args: string[],
     server: SMTPServer,
     client: ClientConn,
   ) {
-    console.log("DEBUG", "EHLO: " + args[0].trim());
-    console.log("DEBUG", client.session.state);
+    const hostname = args[0]?.trim();
+
+    if (!hostname) {
+      return server.sendResponse(
+        { code: 501, message: "Syntax error in parameters or arguments" },
+        client,
+      );
+    }
+
+    client.session.hostname = hostname;
     if (client.session.state == SessionState.Started) {
-      await server.sendResponse(
+      return server.sendResponse(
         {
           code: 250,
-          message: `localhost greets ${
-            args[0].trim()
-          }\r\n200-STARTTLS\r\n200-PIPELINING\r\n200-8BITMIME\r\n200-SIZE 10000000\r\n`,
+          message: `Bad sequence of commands`,
         },
         client,
       );
-      return { code: 503, message: "Bad sequence of commands" };
     }
+
     client.session.state = SessionState.Started;
-    await server.sendResponse(
-      { code: 250, message: `localhost greets ${args[0].trim()}` },
+    return server.sendResponse(
+      {
+        code: 250,
+        message: `${server.hostname} greets ${hostname}`,
+      },
       client,
     );
-    console.log("Done processing");
-    return { code: 220, message: "localhost  greets spectre" };
   }
 }
 export class MAILCommand implements SMTPCommand {
@@ -62,21 +75,12 @@ export class MAILCommand implements SMTPCommand {
     server: SMTPServer,
     client: ClientConn,
   ) {
-    // process MAIL command logic
-    //read the mail from the client
-    // const addr = this.parseAddress(_args[1]);
-    await server.sendResponse({ code: 250, message: "OK" }, client);
-    client.session.mailFrom = [...args].join(" ");
-    console.log("MAIL: " + client.session.mailFrom);
+    console.log("MAIL CMD");
+    client.session.mailFrom = [...args].join(" ").trim();
     client.session.state = SessionState.AwaitingRcptTo;
-    return { code: 250, message: "OK" };
+    console.log("DEBUG | MAIL: " + client.session.mailFrom);
+    return server.sendResponse({ code: 250, message: "OK" }, client);
   }
-  // private parseAddress(email: string): [string, string] {
-  //   const m = email.toString().match(/(.*)\s<(.*)>/);
-  //   return m?.length === 3
-  //     ? [`<${m[2]}>`, email]
-  //     : [`<${email}>`, `<${email}>`];
-  // }
 }
 export class RCPTCommand implements SMTPCommand {
   async execute(
@@ -85,44 +89,51 @@ export class RCPTCommand implements SMTPCommand {
     client: ClientConn,
   ) {
     const mail = [..._args].join(" ");
-    console.log("RCPT: " + mail);
+    console.log("RCPT: " + mail.trim());
     client.session.state = SessionState.AwaitingData;
     client.session.rcptTo = mail;
-    await server.sendResponse({ code: 250, message: "2.1.5 Ok" }, client);
-    return { code: 250, message: "2.1.5 Ok" };
+
+    return await server.sendResponse(
+      { code: 250, message: "2.1.5 Ok" },
+      client,
+    );
   }
 }
 export class DATACommand implements SMTPCommand {
   async execute(_args: string[], server: SMTPServer, client: ClientConn) {
-    // process DATA command logic
     switch (client.session.state) {
-      case SessionState.AwaitingData:
-        {
-          await server.sendResponse({
-            code: 354,
-            message: "End data with <CR><LF>.<CR><LF>",
-          }, client);
-          client.session.state = SessionState.AwaitingEndOfData;
-        }
-        break;
-      case SessionState.AwaitingEndOfData:
+      case SessionState.AwaitingData: {
+        client.session.state = SessionState.AwaitingEndOfData;
+        return await server.sendResponse({
+          code: 354,
+          message: "End data with <CR><LF>.<CR><LF>",
+        }, client);
+      }
+      case SessionState.AwaitingEndOfData: {
         client.session.data = "";
-        //loop until the client sends the end of data
-        for (const line in _args) {
-          console.log(_args[line]);
-        }
-        client.session.state = SessionState.Started;
-        await server.sendResponse({ code: 250, message: "OK" }, client);
-        break;
-    }
-    //change the state of the client
 
-    return { code: 250, message: "OK" };
+        for (const line in _args) {
+          console.log("DATA :: " + _args[line].trim());
+          client.session.data += _args[line].trim() + "";
+        }
+
+        client.session.state = SessionState.Started;
+
+        return await server.sendResponse({ code: 250, message: "OK" }, client);
+      }
+      default:
+        return await server.sendResponse(
+          { code: 503, message: "Bad sequence of commands" },
+          client,
+        );
+    }
   }
 }
 export class RSETCommand implements SMTPCommand {
   execute(_args: string[], _context: SMTPServer): SMTPResponse {
     // process RSET command logic
+    //reset session
+
     return { code: 250, message: "OK" };
   }
 }
@@ -143,17 +154,12 @@ export class QUITCommand implements SMTPCommand {
     );
     client.conn.write(encoder.encode("221 Bye\r\n"));
     client.conn.close();
-    return {
-      code: 221,
-      message: "Bye",
-    };
   }
 }
-//auth
 export class AUTHCommand implements SMTPCommand {
   async execute(
     _args: string[],
-    _context: SMTPServer,
+    server: SMTPServer,
     client: ClientConn,
     cmd: string,
   ) {
@@ -161,28 +167,36 @@ export class AUTHCommand implements SMTPCommand {
       case SessionState.Started:
         client.session.authType = _args[0];
         client.session.state = SessionState.AwaitingAuthUsername;
-        await client.conn.write(encoder.encode("334 VXNlcm5hbWU6\r\n"));
-        return { code: 334, message: "VXNlcm5hbWU6" };
+
+        return await server.sendResponse({
+          code: 334,
+          message: "VXNlcm5hbWU6",
+        }, client);
       case SessionState.AwaitingAuthUsername:
-        console.debug("DEBUG: GOT USERNAME" + cmd);
+        console.debug("DEBUG: GOT USERNAME" + cmd.trim());
         client.session.username = cmd;
         client.session.state = SessionState.AwaitingAuthPassword;
-        await client.conn.write(encoder.encode("334 UGFzc3dvcmQ6\r\n"));
-        return { code: 334, message: "UGFzc3dvcmQ6" };
+
+        return await server.sendResponse({
+          code: 334,
+          message: "UGFzc3dvcmQ6",
+        }, client);
       case SessionState.AwaitingAuthPassword:
-        console.debug("DEBUG: GOT PASSWORD" + cmd);
+        console.debug("DEBUG: GOT PASSWORD" + cmd.trim());
         client.session.password = cmd;
         client.session.state = SessionState.Authenticated;
-        await client.conn.write(
-          encoder.encode("235 Authentication successful\r\n"),
-        );
-        return { code: 235, message: "Authentication successful" };
+
+        return await server.sendResponse({
+          code: 235,
+          message: "Authentication successful",
+        }, client);
+
       default:
         client.session.state = SessionState.Started;
-        await client.conn.write(
-          encoder.encode("503 Bad sequence of commands\r\n"),
-        );
-        return { code: 503, message: "Bad sequence of commands" };
+        return await server.sendResponse({
+          code: 503,
+          message: "Bad sequence of commands",
+        }, client);
     }
   }
 }

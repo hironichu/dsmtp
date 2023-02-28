@@ -1,4 +1,4 @@
-.key
-.txt
+*.key
+*.txt
 server.key
 .env

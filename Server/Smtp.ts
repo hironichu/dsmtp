@@ -11,11 +11,15 @@ export class SMTPServer implements SMTPContext {
   public users: User[];
   public mails: Mailbox[];
   public domains: Domain[];
+  public readonly hostname: string;
+  public readonly name: string;
   #security: Security;
-  constructor(security: Security) {
+  constructor(security: Security, config: { hostname: string; name: string }) {
     this.users = [];
     this.mails = [];
     this.domains = [];
+    this.hostname = config.hostname;
+    this.name = config.name;
     this.#security = security;
     this.#security.load(this).then(() => {
       console.log("[DSMTP] SMTPContext data restored from previous session");
@@ -28,10 +32,14 @@ export class SMTPServer implements SMTPContext {
     });
     this.#security.init(this);
   }
-  public async sendResponse(response: SmtpResponse, client: ClientConn) {
+  public async sendResponse(
+    response: SmtpResponse,
+    client: ClientConn,
+  ): Promise<SmtpResponse> {
     await client.conn.write(
       encoder.encode(`${response.code} ${response.message}\r\n`),
     );
+    return response;
   }
   spawnThread() {
   }

@@ -21,6 +21,7 @@ export type Session = {
   mailFrom?: string;
   rcptTo?: string;
   data?: string;
+  hostname?: string;
 };
 
 export type ClientConn = {

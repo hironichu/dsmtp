@@ -2,9 +2,8 @@
 // Description: This implement a basic SMTP server
 // Author: Nassim Zenzelaoui
 
-import { commandMap, commands } from "./Server/Command.ts";
+import { commandMap } from "./Server/Command.ts";
 import { SMTPCommand } from "./Server/Interfaces.ts";
-import { SMTPResponse } from "./Server/Response.ts";
 import { Security } from "./Server/Security.ts";
 import { ClientConn, SessionState } from "./Server/Session.ts";
 import { SMTPServer } from "./Server/Smtp.ts";
@@ -33,7 +32,10 @@ const decoder = new TextDecoder();
 
 const clients = new Map<string, ClientConn>();
 const security = await new Security();
-const server = new SMTPServer(security);
+const server = new SMTPServer(security, {
+  hostname: Deno.env.get("DSMTP_HOSTNAME")!,
+  name: Deno.env.get("DSMTP_NAME")!,
+});
 
 async function processCommand(
   command: string,
@@ -44,18 +46,25 @@ async function processCommand(
 ) {
   const cmdState = commandMap[client.session.state];
   if (cmdState) {
-    let cmd =
-      cmdState[command as unknown as keyof typeof cmdState] as SMTPCommand;
+    let cmd = cmdState[
+      command.toUpperCase() as unknown as keyof typeof cmdState
+    ] as SMTPCommand;
     if (!cmd) {
       cmd = (cmdState as keyof typeof cmdState)["default"] as SMTPCommand;
     }
     if (!cmd) {
-      return { code: 502, message: "Command not implemented" };
+      return server.sendResponse(
+        { code: 502, message: "Command not implemented" },
+        client,
+      );
     }
     console.info(`[DSMTP] Client ${client.conn.rid}: Command: `, command);
     await cmd.execute(args, server, client, cmd_text);
   } else {
-    return { code: 502, message: "Command not implemented" };
+    return server.sendResponse(
+      { code: 502, message: "Command not implemented" },
+      client,
+    );
   }
 }
 
@@ -65,6 +74,7 @@ async function handleMessages(client: ClientConn, id: string) {
       const data = decoder.decode(res);
       let [command, ...args] = data.split(" ");
       command = command.trim();
+      console.log(`[DSMTP] Client ${client.conn.rid}: `, command, args);
       await processCommand(command, args, server, client, command);
       //
     } catch (e) {
