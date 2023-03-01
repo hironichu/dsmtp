@@ -2,3 +2,4 @@
 *.txt
 server.key
 .env
+*.lock

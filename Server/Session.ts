@@ -12,7 +12,7 @@ export enum SessionState {
   AwaitingEndOfData = "awaitingEndOfData",
   AwaitingQuit = "awaitingQuit",
 }
-
+//TODO(Hironichu) Add Docs
 export type Session = {
   state: SessionState;
   username?: string;

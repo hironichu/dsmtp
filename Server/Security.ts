@@ -9,7 +9,7 @@ import { User } from "./Users.ts";
 export interface ISecurity {
   load(context: SMTPServer): Promise<void>;
 }
-
+//TODO(Hironichu) Add Docs
 export class Security implements ISecurity {
   #key: CryptoKey | null = null;
   #iv: Uint8Array | null = null;
@@ -18,15 +18,17 @@ export class Security implements ISecurity {
   #hashes = new Map<string, string>();
   #HMAC: CryptoKey | null = null;
   constructor() {
-    //read the key from the file, do not keep it in memory
+
     const key = Deno.readFileSync("./server.key");
-    //read the salt and iv from the localStorage
     const enc_salt = localStorage.getItem("salt");
     const enc_iv = localStorage.getItem("iv");
+
     if (!enc_salt || !enc_iv) {
       throw new Error("The salt or iv is missing");
     }
+
     this.#iv = new Uint8Array(base64ToBytesArr(enc_iv));
+
     window.crypto.subtle.importKey(
       "raw",
       key,
@@ -48,18 +50,21 @@ export class Security implements ISecurity {
       this.#HMAC = key;
     });
   }
+  //TODO(Hironichu) Add Docs
   public init(server: SMTPServer) {
     this.#update(server);
   }
+  //TODO(Hironichu) Add Docs
   async load(server: SMTPServer) {
     if (!this.#key || !this.#iv) throw new Error("The key or iv is missing");
     const smtpData = localStorage.getItem("smtpData");
     try {
       if (smtpData === null) throw new Error("The data is missing");
       const restored = await this.decrypt(smtpData!);
-      //check if the record is empty
+      //Check if the record is empty
       if (Object.keys(restored).length === 0) {
         console.info("[DSMTP] No data to restore");
+
         const data = {
           users: server.users,
           domains: server.domains,
@@ -77,18 +82,23 @@ export class Security implements ISecurity {
           "mails",
           await this.digest(JSON.stringify(data.mails)),
         );
+
         const encrypted = await this.encrypt(JSON.stringify(data));
         if (encrypted === null) throw new Error("The data is missing");
         localStorage.setItem("smtpData", encrypted);
       } else {
         console.info("[DSMTP] Restoring the data");
+
         if (
           restored.users === undefined || restored.domains === undefined ||
           restored.mails === undefined
         ) throw new Error("The data is missing");
+
         server.users = restored.users as unknown as User[];
         server.domains = restored.domains as unknown as Domain[];
         server.mails = restored.mails as unknown as Mailbox[];
+        
+        //Set the new hashes
         this.#hashes.set(
           "users",
           await this.digest(JSON.stringify(server.users)),
@@ -101,16 +111,20 @@ export class Security implements ISecurity {
           "mails",
           await this.digest(JSON.stringify(server.mails)),
         );
+
       }
     } catch (ex) {
       throw ex;
     }
   }
+  //TODO(Hironichu) Add Docs
   #update(context: SMTPServer) {
     if (!this.#key || !this.#iv) throw new Error("The key or iv is missing");
     Promise.all([
       (async () => {
+
         let lastTime = Date.now();
+
         while (true) {
           if (Date.now() - lastTime < 5000) {
             await new Promise((resolve) =>
@@ -122,6 +136,7 @@ export class Security implements ISecurity {
           const domainsHash = await this.digest(
             JSON.stringify(context.domains),
           );
+
           const mailsHash = await this.digest(JSON.stringify(context.mails));
           if (
             usersHash === this.#hashes.get("users") &&
@@ -133,54 +148,67 @@ export class Security implements ISecurity {
             continue;
           }
           console.info("[DSMTP] Updating the data");
+
           const data = {
             users: context.users,
             domains: context.domains,
             mails: context.mails,
           };
+
           const encrypted = await this.encrypt(JSON.stringify(data));
           if (encrypted === null) throw new Error("The data is missing");
+          //Save the data
           localStorage.setItem("smtpData", encrypted);
-          //update the hashes
+          //Update the hashes with the new ones
           this.#hashes.set("users", usersHash);
           this.#hashes.set("domains", domainsHash);
           this.#hashes.set("mails", mailsHash);
 
           console.info("[DSMTP] Data updated " + new Date().toLocaleString());
           lastTime = Date.now();
+
           await new Promise((resolve) => setTimeout(resolve, 5000));
         }
       })(),
     ]);
   }
+  //TODO(Hironichu) Add Docs
   private async decrypt(data: string): Promise<Record<string, unknown>> {
     if (!this.#key || !this.#iv) throw new Error("The key or iv is missing");
     try {
       const decodedbuffer = base64ToBytesArr(data);
+
       const decryptedbuff = await window.crypto.subtle.decrypt(
         { name: "AES-GCM", iv: this.#iv },
         this.#key,
         new Uint8Array(decodedbuffer),
       );
+
       const decoded = new TextDecoder().decode(decryptedbuff);
+
       return JSON.parse(decoded);
     } catch (ex) {
       throw ex;
     }
   }
+  //TODO(Hironichu) Add Docs
   private async encrypt(data: string): Promise<string | null> {
     if (!this.#key || !this.#iv) throw new Error("The key or iv is missing");
     try {
+
       const buff = new TextEncoder().encode(data);
       const encrypted = await window.crypto.subtle.encrypt(
         { name: "AES-GCM", iv: this.#iv },
         this.#key,
         buff,
       );
+
       const buffer = new Uint8Array(encrypted);
+
       return btoa(
         buffer.reduce((data, byte) => data + String.fromCharCode(byte), ""),
       );
+
     } catch (ex) {
       throw ex;
     }
@@ -190,23 +218,28 @@ export class Security implements ISecurity {
     //Function that verify the HMAC
   }
   public async HMACsign(data: string): Promise<ArrayBuffer> {
-    if (!this.#HMAC) throw new Error("The HMAC key is missing");
+    if (!this.#HMAC) throw new Error("The HMAC key is missing")
+
     const signature = await window.crypto.subtle.sign(
       "HMAC",
       this.#HMAC,
       new TextEncoder().encode(data),
     );
+
     return signature;
   }
   public async digest(data: string): Promise<string> {
-    //Function that digest data
+    if (!data) throw new Error("The data is missing");
     try {
+
       const hash = await crypto.subtle.digest(
         "SHA-256",
         new TextEncoder().encode(data),
       );
+
       const hashArray = Array.from(new Uint8Array(hash));
       const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0"));
+
       return hashHex.join("");
     } catch (ex) {
       throw ex;

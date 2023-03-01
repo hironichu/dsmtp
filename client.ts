@@ -11,7 +11,7 @@ await client.connect({
 });
 console.log("connected");
 
-// await client.send({
+// await client.send({w
 //   from: "mailaddress@163.com",
 //   to: "to-address@xx.com",
 //   subject: "Mail Title",
