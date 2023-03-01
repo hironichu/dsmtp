@@ -18,7 +18,6 @@ export class Security implements ISecurity {
   #hashes = new Map<string, string>();
   #HMAC: CryptoKey | null = null;
   constructor() {
-
     const key = Deno.readFileSync("./server.key");
     const enc_salt = localStorage.getItem("salt");
     const enc_iv = localStorage.getItem("iv");
@@ -97,7 +96,7 @@ export class Security implements ISecurity {
         server.users = restored.users as unknown as User[];
         server.domains = restored.domains as unknown as Domain[];
         server.mails = restored.mails as unknown as Mailbox[];
-        
+
         //Set the new hashes
         this.#hashes.set(
           "users",
@@ -111,7 +110,6 @@ export class Security implements ISecurity {
           "mails",
           await this.digest(JSON.stringify(server.mails)),
         );
-
       }
     } catch (ex) {
       throw ex;
@@ -122,7 +120,6 @@ export class Security implements ISecurity {
     if (!this.#key || !this.#iv) throw new Error("The key or iv is missing");
     Promise.all([
       (async () => {
-
         let lastTime = Date.now();
 
         while (true) {
@@ -195,7 +192,6 @@ export class Security implements ISecurity {
   private async encrypt(data: string): Promise<string | null> {
     if (!this.#key || !this.#iv) throw new Error("The key or iv is missing");
     try {
-
       const buff = new TextEncoder().encode(data);
       const encrypted = await window.crypto.subtle.encrypt(
         { name: "AES-GCM", iv: this.#iv },
@@ -208,7 +204,6 @@ export class Security implements ISecurity {
       return btoa(
         buffer.reduce((data, byte) => data + String.fromCharCode(byte), ""),
       );
-
     } catch (ex) {
       throw ex;
     }
@@ -218,7 +213,7 @@ export class Security implements ISecurity {
     //Function that verify the HMAC
   }
   public async HMACsign(data: string): Promise<ArrayBuffer> {
-    if (!this.#HMAC) throw new Error("The HMAC key is missing")
+    if (!this.#HMAC) throw new Error("The HMAC key is missing");
 
     const signature = await window.crypto.subtle.sign(
       "HMAC",
@@ -231,7 +226,6 @@ export class Security implements ISecurity {
   public async digest(data: string): Promise<string> {
     if (!data) throw new Error("The data is missing");
     try {
-
       const hash = await crypto.subtle.digest(
         "SHA-256",
         new TextEncoder().encode(data),
