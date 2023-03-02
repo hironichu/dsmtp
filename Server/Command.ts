@@ -22,7 +22,7 @@ export class HELOCommand implements SMTPCommand {
     }
     if (client.session.state == SessionState.Started) {
       return await server.sendResponse(
-        { code: 250, message: `Bad sequence of commands` },
+        { code: 503, message: `Bad sequence of commands HELO` },
         client,
       );
     }
@@ -69,6 +69,7 @@ export class EHLOCommand implements SMTPCommand {
     );
   }
 }
+
 export class MAILCommand implements SMTPCommand {
   execute(
     args: string[],
@@ -82,6 +83,7 @@ export class MAILCommand implements SMTPCommand {
     return server.sendResponse({ code: 250, message: "OK" }, client);
   }
 }
+
 export class RCPTCommand implements SMTPCommand {
   async execute(
     _args: string[],
@@ -113,44 +115,53 @@ export class DATACommand implements SMTPCommand {
         client.session.data = "";
 
         for (const line in _args) {
+          if (_args[line].trim() == ".") {
+            await server.sendResponse(
+              { code: 250, message: "OK" },
+              client,
+            );
+            client.session.state = SessionState.Started;
+          }
           client.session.data += _args[line].trim() + "";
         }
-
-        if (client.session.data.endsWith(".")) {
-          client.session.state = SessionState.Started;
-          client.session.data = client.session.data.slice(
-            0,
-            client.session.data.length - 1,
-          );
-          return await server.sendResponse(
-            { code: 250, message: "OK" },
-            client,
-          );
-        }
-        return await server.sendResponse(
-          { code: 503, message: "Bad sequence of commands" },
-          client,
-        );
+        return null;
       }
+      ///TODO: check if this is correct
       case SessionState.Started:
         return await server.sendResponse(
-          { code: 503, message: "Bad sequence of commands" },
+          { code: 503, message: "Bad sequence of commands 2" },
           client,
         );
+      ///TODO: check if this is correct
       default:
         return await server.sendResponse(
-          { code: 503, message: "Bad sequence of commands" },
+          { code: 503, message: "Bad sequence of commands 3" },
           client,
         );
     }
   }
 }
 export class RSETCommand implements SMTPCommand {
-  execute(_args: string[], _context: SMTPServer): SMTPResponse {
-    // process RSET command logic
-    //reset session
+  async execute(_args: string[], server: SMTPServer, client: ClientConn,) {
+    if (client.session) {
 
-    return { code: 250, message: "OK" };
+      client.session = {
+        state: SessionState.Started,
+        mailFrom: "",
+        rcptTo: "",
+        data: "",
+      };
+
+      return await server.sendResponse(
+        { code: 250, message: "OK" },
+        client,
+      );
+    }
+
+    return await server.sendResponse(
+      { code: 503, message: "Bad sequence of commands" },
+      client,
+    );
   }
 }
 export class NOOPCommand implements SMTPCommand {
@@ -178,7 +189,7 @@ export class AUTHCommand implements SMTPCommand {
     server: SMTPServer,
     client: ClientConn,
     cmd: string,
-  ) {
+  ):  Promise<SMTPResponse> | SMTPResponse | void | Promise<void> {
     switch (client.session.state) {
       case SessionState.Started:
         client.session.authType = _args[0];
@@ -189,7 +200,7 @@ export class AUTHCommand implements SMTPCommand {
           message: "VXNlcm5hbWU6",
         }, client);
       case SessionState.AwaitingAuthUsername:
-        console.debug("DEBUG: GOT USERNAME" + cmd.trim());
+        // console.debug("DEBUG: GOT USERNAME" + cmd.trim());
         client.session.username = cmd;
         client.session.state = SessionState.AwaitingAuthPassword;
 
@@ -198,7 +209,7 @@ export class AUTHCommand implements SMTPCommand {
           message: "UGFzc3dvcmQ6",
         }, client);
       case SessionState.AwaitingAuthPassword:
-        console.debug("DEBUG: GOT PASSWORD" + cmd.trim());
+        // console.debug("DEBUG: GOT PASSWORD" + cmd.trim());
         client.session.password = cmd;
         client.session.state = SessionState.Authenticated;
 

@@ -11,7 +11,7 @@ export interface SMTPCommand {
     context: SMTPServer,
     client: ClientConn,
     cmd_text?: string,
-  ): Promise<SMTPResponse> | SMTPResponse | void | Promise<void>;
+  ): Promise<SMTPResponse | null | void> | SMTPResponse | void;
 }
 
 export interface SMTPContext {

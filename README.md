@@ -1,19 +1,29 @@
-# DSSMTP
+# DSMTP
 
-## Deno Simple Secure Message Protocol
+## Deno Simple Message Protocol
 
 This Project is for educational purposes only,
 
-DSSMTP is a not so heavily modified version of the SMTP protocol.
+DSMTP is a simplified version of the SMTP protocol in Deno.
 
-It implements end-to-end encryption of mail, this is not to be confused with
-TLS! it does not encrypt in/out connection. only the content that goes from one
-user to another.
+the protocol implements a very basic version of the SMTP protocol, it is
+intended to be used for testing and fun.
 
-Maybe it can be modified to be used for "real use" but I wouldn't recommand
-using your own server.
+Please don't use it in production, you could use it for fun or debugging mail
+system, but that's it.
 
-### How to run
+### Why ?
+
+This is an experiment, i wanted to see how hard it would be to implement a mail
+server in Deno.
+
+### What is implemented ?
+
+I want to implement real authentication system later but for now this server is
+only capable on receiving mails. It does not support TLS, and it does not
+support any kind of authentication.
+
+### How to use
 
 You first need to init a private key that will encrypt all Mail/user data on the
 server localStorage
@@ -44,21 +54,21 @@ deno task dev
 ```
 
 This will spin up the server on port `25`, this server does not support any kind
-of TLS communication (yet?), it is made entirely for testing and fun.
+of TLS communication, it is made entirely for testing and fun.
 
 ### How to use it ?
 
-First you need to register a client, to do so I have created a fun and not
-secured way of doing so, if you send an email to the server with the subject
-"REGISTERME", the server will read the sender and save it.
+So far you can't really use it as a proper SMTP server, it can receive mails but
+it will not save them anywhere, it will just log them in the console.
 
-Because I am a madman, I was thinking about a way to secure user registration in
-a weird way, the server will generate a private/public key pair that match your
-account, the private key is not saved on the server at any moment, only the
-public key.
+To send a mail you can use the client.ts file : (this file only contains the
+basic, only sending test messages..)
 
-The public key is used to verify mail sent and received, this is because to send
-mail to the server you first need to encrypt the content.
+```bash
+deno task client
+```
 
-Why ? because only people with your public key will be able to trust your mail
-and therefore read them.
+> ### Note
+>
+> You might want to register the proper DNS information to recieve mail if you
+> want to send mail from a proper mailing services, i have not tested this yet.
