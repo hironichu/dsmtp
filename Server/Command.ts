@@ -142,9 +142,8 @@ export class DATACommand implements SMTPCommand {
   }
 }
 export class RSETCommand implements SMTPCommand {
-  async execute(_args: string[], server: SMTPServer, client: ClientConn,) {
+  async execute(_args: string[], server: SMTPServer, client: ClientConn) {
     if (client.session) {
-
       client.session = {
         state: SessionState.Started,
         mailFrom: "",
@@ -189,7 +188,7 @@ export class AUTHCommand implements SMTPCommand {
     server: SMTPServer,
     client: ClientConn,
     cmd: string,
-  ):  Promise<SMTPResponse> | SMTPResponse | void | Promise<void> {
+  ): Promise<SMTPResponse> | SMTPResponse | void | Promise<void> {
     switch (client.session.state) {
       case SessionState.Started:
         client.session.authType = _args[0];
