@@ -3,14 +3,12 @@
 export class Mail {
   from: string;
   to: string;
-  subject: string;
-  body: string;
+  data: string;
   date: Date;
-  constructor(from: string, to: string, subject: string, body: string) {
+  constructor(from: string, to: string, data: string) {
     this.from = from;
     this.to = to;
-    this.subject = subject;
-    this.body = body;
+    this.data = data;
     this.date = new Date();
   }
   serialize(): string {

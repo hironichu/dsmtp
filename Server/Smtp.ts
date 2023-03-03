@@ -22,7 +22,6 @@ export class SMTPServer implements SMTPContext {
     this.name = config.name;
     this.#security = security;
     this.#security.load(this).then(() => {
-      console.log("[DSMTP] SMTPContext data restored from previous session");
       console.info("[DSMTP] Users:", this.users.length);
       console.info("[DSMTP] Domains:", this.domains.length);
       console.info("[DSMTP] Mailboxes:", this.mails.length);
@@ -36,9 +35,6 @@ export class SMTPServer implements SMTPContext {
     response: SmtpResponse,
     client: ClientConn,
   ): Promise<SmtpResponse> {
-    console.log(
-      `[DSMTP] Sending Response: ${response.code} ${response.message}`,
-    );
     await client.conn.write(
       encoder.encode(`${response.code} ${response.message}\r\n`),
     );

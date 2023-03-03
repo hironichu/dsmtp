@@ -5,7 +5,7 @@ import { SMTPCommand } from "./Interfaces.ts";
 import { SMTPResponse } from "./Response.ts";
 import { ClientConn, SessionState } from "./Session.ts";
 import { SMTPServer } from "./Smtp.ts";
-
+import { Mail } from "./Mail.ts"
 export class HELOCommand implements SMTPCommand {
   async execute(
     args: string[],
@@ -121,6 +121,10 @@ export class DATACommand implements SMTPCommand {
               client,
             );
             client.session.state = SessionState.Started;
+            //
+            const mail = new Mail(client.session.mailFrom!, client.session.rcptTo!, client.session.data);
+            console.log(mail);
+            return ;
           }
           client.session.data += _args[line].trim() + "";
         }

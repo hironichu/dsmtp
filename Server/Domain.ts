@@ -3,7 +3,6 @@ export class Domain {
   public ext: string;
 
   constructor(domain: string) {
-    //verify the domain name using a Regex pattern,  it should only be a xxx.xxx format
     const pattern = new RegExp(/^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,6}$/);
     if (!pattern.test(domain)) {
       throw new TypeError("Invalid Domain: Invalid format");

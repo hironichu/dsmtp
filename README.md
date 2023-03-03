@@ -41,8 +41,8 @@ deno task init
 ```
 
 It will prompt you for a secret phrase, the minimum requirement is a 10
-characters phrase that will not be hold in memory, it's only used for generating
-the key.
+characters phrase, this string will not be held in memory, it's only used for
+generating the key.
 
 (That means if you loose the key, and if you don't have the secret phrase, you
 will not be able to recover the data.)
